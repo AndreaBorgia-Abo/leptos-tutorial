@@ -32,16 +32,15 @@ fn StaticList(#[prop(default = 5)] itemno: u16) -> impl IntoView {
     view! { <ul>{counter_buttons}</ul> }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Counter {
+    id: u16,
+    count: ArcRwSignal<i32>,
+}
 #[component]
 fn DynamicList(
     #[prop(default = 5)] initial_length: u16, // The number of counters to begin with.
 ) -> impl IntoView {
-    // This dynamic list will use the <For/> component.
-    // <For/> is a keyed list. This means that each row
-    // has a defined key. If the key does not change, the row
-    // will not be re-rendered. When the list changes, only
-    // the minimum number of changes will be made to the DOM.
-
     // `next_counter_id` will let us generate unique IDs
     // we do this by simply incrementing the ID by one
     // each time we create a counter
@@ -51,7 +50,10 @@ fn DynamicList(
     // but this time we include the ID along with the signal
     // see NOTE in add_counter below re: ArcRwSignal
     let initial_counters = (0..initial_length)
-        .map(|id| (id, ArcRwSignal::new(id + 1)))
+        .map(|id| Counter {
+            id,
+            count: ArcRwSignal::new((id + 1) as i32),
+        })
         .collect::<Vec<_>>();
 
     // now we store that initial list in a signal
@@ -66,12 +68,15 @@ fn DynamicList(
         // signal types we've been using so far.
         // When we're creating a collection of signals like this, using ArcRwSignal
         // allows each signal to be deallocated when its row is removed.
-        let sig = ArcRwSignal::new(next_counter_id + 1);
+        let sig = ArcRwSignal::new((next_counter_id + 1) as i32);
         // add this counter to the list of counters
         set_counters.update(move |counters| {
             // since `.update()` gives us `&mut T`
             // we can just use normal Vec methods like `push`
-            counters.push((next_counter_id, sig))
+            counters.push(Counter {
+                id: next_counter_id,
+                count: sig,
+            });
         });
         // increment the ID so it's always unique
         next_counter_id += 1;
@@ -81,36 +86,29 @@ fn DynamicList(
         <div>
             <button on:click=add_counter>"Add Counter"</button>
             <ul>
-                // The <For/> component is central here
-                // This allows for efficient, key list rendering
-                <For
-                    // `each` takes any function that returns an iterator
-                    // this should usually be a signal or derived signal
-                    // if it's not reactive, just render a Vec<_> instead of <For/>
+                <ForEnumerate
                     each=move || counters.get()
-                    // the key should be unique and stable for each row
-                    // using an index is usually a bad idea, unless your list
-                    // can only grow, because moving items around inside the list
-                    // means their indices will change and they will all rerender
-                    key=|counter| counter.0
-                    // `children` receives each item from your `each` iterator
-                    // and returns a view
-                    children=move |(id, count)| {
-                        let count = RwSignal::from(count);
-                        // we can convert our ArcRwSignal to a Copy-able RwSignal
-                        // for nicer DX when moving it into the view
-                        view! {
-                            <li>
-                                <button on:click=move |_| *count.write() += 1>{count}</button>
-                                <button on:click=move |_| {
-                                    set_counters
-                                        .write()
-                                        .retain(|(counter_id, _)| { counter_id != &id });
-                                }>"Remove"</button>
-                            </li>
-                        }
-                    }
-                />
+                    key=|counter| counter.id
+                    let(row_idx,
+                    counter)
+                >
+                    <li>
+                        <span>"Row position: " {row_idx} " | "</span>
+                        <button on:click={
+                            let count = counter.count.clone();
+                            move |_| *count.write() += 1
+                        }>
+                            {
+                                let count = counter.count.clone();
+                                move || count.get()
+                            }
+                        </button>
+                        <button on:click={
+                            let id = counter.id;
+                            move |_| set_counters.write().retain(|c| c.id != id)
+                        }>"Remove"</button>
+                    </li>
+                </ForEnumerate>
             </ul>
         </div>
     }
