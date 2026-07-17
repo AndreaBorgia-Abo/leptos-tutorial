@@ -812,6 +812,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "leptos",
+ "reactive_stores",
 ]
 
 [[package]]
