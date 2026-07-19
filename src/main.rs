@@ -1,383 +1,133 @@
-use std::vec;
-
+use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
-fn main() {
-    mount_to_body(App);
-}
-
-// Initial version, deliberately not working
-/*
-#[derive(Debug, Clone)]
-struct DatabaseEntry {
-    key: String,
-    value: i32,
-}
 
 #[component]
-pub fn App() -> impl IntoView {
-    // start with a set of three rows
-    let (data, set_data) = signal(vec![
-        DatabaseEntry {
-            key: "foo".to_string(),
-            value: 10,
-        },
-        DatabaseEntry {
-            key: "bar".to_string(),
-            value: 20,
-        },
-        DatabaseEntry {
-            key: "baz".to_string(),
-            value: 15,
-        },
-    ]);
+fn App() -> impl IntoView {
+    let (value, set_value) = signal(0i32);
+    let some_value = RwSignal::new(String::from("Initial text here..."));
+
     view! {
-        // when we click, update each row,
-        // doubling its value
-        <button on:click=move |_| {
-            set_data
-                .update(|data| {
-                    for row in data {
-                        row.value *= 2;
-                    }
-                });
-            leptos::logging::log!("{:?}", data.get());
-        }>"Update Values"</button>
-        // iterate over the rows and display each value
-        <For each=move || data.get() key=|state| state.key.clone() let(child)>
-            <p>{child.value}</p>
-        </For>
-    }
-}
-*/
-
-// Option 1 - rekey
-/*
-#[derive(Debug, Clone)]
-struct DatabaseEntry {
-    key: String,
-    value: i32,
-}
-
-#[component]
-pub fn App() -> impl IntoView {
-    // start with a set of three rows
-    let (data, set_data) = signal(vec![
-        DatabaseEntry {
-            key: "foo".to_string(),
-            value: 10,
-        },
-        DatabaseEntry {
-            key: "bar".to_string(),
-            value: 20,
-        },
-        DatabaseEntry {
-            key: "baz".to_string(),
-            value: 15,
-        },
-    ]);
-    view! {
-        // when we click, update each row,
-        // doubling its value
-        <button on:click=move |_| {
-            set_data
-                .update(|data| {
-                    for row in data {
-                        row.value *= 2;
-                    }
-                });
-            leptos::logging::log!("{:?}", data.get());
-        }>"Update Values"</button>
-        // iterate over the rows and display each value
-        <For each=move || data.get() key=|state| (state.key.clone(), state.value) let(child)>
-            <p>{child.value}</p>
-        </For>
-    }
-}
- */
-
-// Option 2 - nested signal
-/* #[derive(Debug, Clone)]
-struct DatabaseEntry {
-    key: String,
-    value: RwSignal<i32>,
-}
-
-#[component]
-pub fn App() -> impl IntoView {
-    // start with a set of three rows
-    let (data, _set_data) = signal(vec![
-        DatabaseEntry {
-            key: "foo".to_string(),
-            value: RwSignal::new(10),
-        },
-        DatabaseEntry {
-            key: "bar".to_string(),
-            value: RwSignal::new(20),
-        },
-        DatabaseEntry {
-            key: "baz".to_string(),
-            value: RwSignal::new(15),
-        },
-    ]);
-    view! {
-        // when we click, update each row,
-        // doubling its value
-        <button on:click=move |_| {
-            for row in &*data.read() {
-                row.value.update(|value| *value *= 2);
+        <select
+            on:change:target=move |ev| {
+                set_value.set(ev.target().value().parse().unwrap());
             }
-            leptos::logging::log!("{:?}", data.get());
-        }>"Update Values"</button>
-        // iterate over the rows and display each value
-        <For each=move || data.get() key=|state| state.key.clone() let(child)>
-            <p>{child.value}</p>
-        </For>
-    }
-} */
-
-// Option 3 - using Memo
-/* #[derive(Debug, Clone)]
-struct DatabaseEntry {
-    key: String,
-    value: i32,
-}
-
-#[component]
-pub fn App() -> impl IntoView {
-    // start with a set of three rows
-    let (data, set_data) = signal(vec![
-        DatabaseEntry {
-            key: "foo".to_string(),
-            value: 10,
-        },
-        DatabaseEntry {
-            key: "bar".to_string(),
-            value: 20,
-        },
-        DatabaseEntry {
-            key: "baz".to_string(),
-            value: 15,
-        },
-    ]);
-    view! {
-        // when we click, update each row,
-        // doubling its value
+            prop:value=move || value.get().to_string()
+        >
+            <option value="0">"0"</option>
+            <option value="1">"1"</option>
+            <option value="2">"2"</option>
+        </select>
+        // a button that will cycle through the options
         <button on:click=move |_| {
-            set_data
-                .update(|data| {
-                    for row in data {
-                        row.value *= 2;
-                    }
-                });
-            leptos::logging::log!("{:?}", data.get());
-        }>"Update Values"</button>
-        // iterate over the rows and display each value
-        <ForEnumerate
-            each=move || data.get()
-            key=|state| state.key.clone()
-            children=move |index, _| {
-                let value = Memo::new(move |_| {
-                    data.with(|data| data.get(index.get()).map(|d| d.value).unwrap_or(0))
-                });
-                view! { <p>{value}</p> }
-            }
-        />
-    }
-}
-*/
-
-// Option 4 - with Stores
-/* use reactive_stores::Store;
-
-#[derive(Store, Debug, Clone)]
-pub struct Data {
-    #[store(key: String = |row| row.key.clone())]
-    rows: Vec<DatabaseEntry>,
-}
-
-#[derive(Store, Debug, Clone)]
-struct DatabaseEntry {
-    key: String,
-    value: i32,
-}
-
-#[component]
-pub fn App() -> impl IntoView {
-    // instead of a signal with the rows, we create a store for Data
-    let data = Store::new(Data {
-        rows: vec![
-            DatabaseEntry {
-                key: "foo".to_string(),
-                value: 10,
-            },
-            DatabaseEntry {
-                key: "bar".to_string(),
-                value: 20,
-            },
-            DatabaseEntry {
-                key: "baz".to_string(),
-                value: 15,
-            },
-        ],
-    });
-
-    view! {
-        // when we click, update each row,
-        // doubling its value
-        <button on:click=move |_| {
-            use reactive_stores::StoreFieldIterator;
-            for row in data.rows().iter_unkeyed() {
-                *row.value().write() *= 2;
-            }
-            leptos::logging::log!("{:?}", data.get());
-        }>"Update Values"</button>
-        // iterate over the rows and display each value
-        <For
-            each=move || data.rows()
-            key=|row| row.read().key.clone()
-            children=|child| {
-                let value = child.value();
-                view! { <p>{move || value.get()}</p> }
-            }
-        />
-    }
-} */
-
-// Variant of option 4 with Stores for a Dynamic List
-use reactive_stores::Store;
-
-#[derive(Store, Debug, Clone, PartialEq, Eq)]
-struct Counter {
-    key: u16,
-    value: u16,
-}
-
-#[derive(Default, Store, Debug, Clone)]
-pub struct Counters {
-    #[store(key: u16 = |row| row.key)]
-    rows: Vec<Counter>,
-}
-
-#[component]
-fn DynamicList(
-    #[prop(default = 5)] initial_length: u16, // The number of counters to begin with.
-) -> impl IntoView {
-    // `next_counter_id` will let us generate unique IDs
-    // we do this by simply incrementing the ID by one
-    // each time we create a counter
-    let next_counter_id = RwSignal::new(0);
-
-    // instead of a signal with the rows, we create a store for Data
-    let counters: Store<Counters> = Store::new(Counters::default());
-
-    let add_counter = move |target_pos: Option<usize>| {
-        let new_id = next_counter_id.get();
-        next_counter_id.update(|id| *id += 1);
-
-        let new_counter = Counter {
-            key: new_id,
-            value: new_id + 10,
-        };
-
-        // We mutate the store field directly using the standard reactive .update() method.
-        // Specifying the type parameter on the closure block forces the trait bounds to resolve.
-        counters
-            .rows()
-            .update(|list: &mut Vec<Counter>| match target_pos {
-                Some(pos) => {
-                    if pos <= list.len() {
-                        list.insert(pos, new_counter);
+            set_value
+                .update(|n| {
+                    if *n == 2 {
+                        *n = 0;
                     } else {
-                        list.push(new_counter);
+                        *n += 1;
                     }
-                }
-                None => list.push(new_counter),
-            });
+                })
+        }>"Next Option"</button>
 
-        // Notify the store's key tracker that the collection structure changed
-        counters.rows().update_keys();
+        <textarea
+            prop:value=move || some_value.get()
+            on:input:target=move |ev| some_value.set(ev.target().value())
+        >
+            {some_value}
+        </textarea>
+
+        <h2>"Controlled Component"</h2>
+        <ControlledComponent />
+        <h2>"Uncontrolled Component"</h2>
+        <UncontrolledComponent />
+    }
+}
+
+#[component]
+fn ControlledComponent() -> impl IntoView {
+    // create a signal to hold the value
+    let (name, set_name) = signal("Controlled".to_string());
+
+    view! {
+        <input
+            type="text"
+            // fire an event whenever the input changes
+            // adding :target after the event gives us access to
+            // a correctly-typed element at ev.target()
+            on:input:target=move |ev| {
+                set_name.set(ev.target().value());
+            }
+
+            // the `prop:` syntax lets you update a DOM property,
+            // rather than an attribute.
+            //
+            // IMPORTANT: the `value` *attribute* only sets the
+            // initial value, until you have made a change.
+            // The `value` *property* sets the current value.
+            // This is a quirk of the DOM; I didn't invent it.
+            // Other frameworks gloss this over; I think it's
+            // more important to give you access to the browser
+            // as it really works.
+            //
+            // tl;dr: use prop:value for form inputs
+            prop:value=name
+        />
+        <p>"Name is: " {name}</p>
+    }
+}
+
+#[component]
+fn UncontrolledComponent() -> impl IntoView {
+    // import the type for <input>
+    use leptos::html::Input;
+
+    let (name, set_name) = signal("Uncontrolled".to_string());
+
+    // we'll use a NodeRef to store a reference to the input element
+    // this will be filled when the element is created
+    let input_element: NodeRef<Input> = NodeRef::new();
+
+    // fires when the form `submit` event happens
+    // this will store the value of the <input> in our signal
+    let on_submit = move |ev: SubmitEvent| {
+        // stop the page from reloading!
+        ev.prevent_default();
+
+        // here, we'll extract the value from the input
+        let value = input_element
+            .get()
+            // event handlers can only fire after the view
+            // is mounted to the DOM, so the `NodeRef` will be `Some`
+            .expect("<input> to exist")
+            // `NodeRef` implements `Deref` for the DOM element type
+            // this means we can call`HtmlInputElement::value()`
+            // to get the current value of the input
+            .value();
+        set_name.set(value);
     };
 
-    for _ in 0..initial_length {
-        add_counter(None);
-    }
-
     view! {
-        <div>
-            <button on:click=move |_| {
-                for row in counters.rows() {
-                    *row.value().write() *= 2;
-                }
-                leptos::logging::log!("{:?}", counters.get());
-            }>"Double Values"</button>
+        <form on:submit=on_submit>
+            <input
+                type="text"
+                // here, we use the `value` *attribute* to set only
+                // the initial value, letting the browser maintain
+                // the state after that
+                value=name
 
-            <button on:click=move |_: leptos::ev::MouseEvent| add_counter(
-                None,
-            )>"Append Counter"</button>
-
-            <ul>
-                <ForEnumerate
-                    each=move || counters.rows()
-                    key=|row| row.key()
-                    let:row_idx
-                    let:child
-                >
-                    <li>
-                        <span>
-                            "Row position: " {row_idx} " | ID: " {move || child.key()} " | "
-                        </span>
-
-                        <button on:click=move |_: leptos::ev::MouseEvent| {
-                            *child.value().write() += 1;
-                        }>{move || child.value().get()}</button>
-
-                        <button on:click=move |_: leptos::ev::MouseEvent| {
-                            let id_to_remove = child.key().get();
-                            counters.rows().update(|list| list.retain(|c| c.key != id_to_remove));
-                            counters.rows().update_keys();
-                        }>"Remove"</button>
-
-                        <button on:click=move |_: leptos::ev::MouseEvent| {
-                            let current_pos = row_idx.get();
-                            add_counter(Some(current_pos + 1));
-                        }>"Insert Counter Below"</button>
-                    </li>
-                </ForEnumerate>
-            </ul>
-        </div>
+                // store a reference to this input in `input_element`
+                node_ref=input_element
+            />
+            <input type="submit" value="Submit" />
+        </form>
+        <p>"Name is: " {name}</p>
     }
 }
-#[component]
-pub fn App() -> impl IntoView {
-    let (name, set_name) = signal("Name".to_string());
-    let email = RwSignal::new("".to_string());
-    let favorite_color = RwSignal::new("red".to_string());
-    let spam_me = RwSignal::new(true);
 
-    view! {
-        <DynamicList initial_length=3 />
-        <input type="text" bind:value=(name, set_name) />
-        <input type="email" bind:value=email />
-        <label>
-            "Please send me lots of spam email." <input type="checkbox" bind:checked=spam_me />
-        </label>
-        <fieldset>
-            <legend>"Favorite color"</legend>
-            <label>
-                "Red" <input type="radio" name="color" value="red" bind:group=favorite_color />
-            </label>
-            <label>
-                "Green" <input type="radio" name="color" value="green" bind:group=favorite_color />
-            </label>
-            <label>
-                "Blue" <input type="radio" name="color" value="blue" bind:group=favorite_color />
-            </label>
-        </fieldset>
-        <p>"Your favorite color is " {favorite_color} "."</p>
-        <p>"Name is: " {name}</p>
-        <p>"Email is: " {email}</p>
-        <Show when=move || spam_me.get()>
-            <p>"You’ll receive cool bonus content!"</p>
-        </Show>
-    }
+// This `main` function is the entry point into the app
+// It just mounts our component to the <body>
+// Because we defined it as `fn App`, we can now use it in a
+// template as <App/>
+fn main() {
+    leptos::mount::mount_to_body(App)
 }
